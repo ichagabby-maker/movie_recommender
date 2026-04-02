@@ -1,3 +1,9 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+API_KEY = os.getenv('TMDB_API_KEY')
+
 from flask import Flask, request, render_template
 import requests
 import pandas as pd
@@ -9,15 +15,24 @@ movies = pickle.load(open('model.pkl', 'rb'))
 similarity = pickle.load(open('similarity.pkl', 'rb'))
 # function to fetch movie poster
 def fetch_poster(movie_id):
-    url = "https://api.themoviedb.org/3/movie/{}?api_key=390e76286265f7638bb6b19d86474639&language=en-US".format(movie_id)
-    data = requests.get(url)
-    data = data.json()
-    full_path = "https://image.tmdb.org/t/p/w500/" + data['poster_path']
-    return full_path
+    try:
+        url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={API_KEY}&language=en-US"
+        data = requests.get(url, timeout=5)
+        data.raise_for_status()
+        data = data.json()
+        
+        if data.get('poster_path'):
+            return "https://image.tmdb.org/t/p/w500/" + data['poster_path']
+        return None
+    except Exception as e:
+        print(f"Error fetching poster: {e}")
+        return None
 # function to get recommended movies
 def get_recommendations(movie):
-    # get the index of the selected movie
-    idx = movies[movies['title'] == movie].index[0]
+    try:
+        idx = movies[movies['title'] == movie].index[0]
+    except IndexError:
+        return [], []
     # get pairwise similarity scores of all movies with the selected movie
     sim_scores = list(enumerate(similarity[idx]))
     # sort the movies based on similarity scores in descending order
